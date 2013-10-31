@@ -18,8 +18,6 @@
 *
 **************************************************************************/
 
-#include "Python.h"
-#include "numpy/arrayobject.h"
 
 /*************** CONSTANTS  *******************/
 
@@ -27,12 +25,12 @@
 
 /*************** TYPES      *******************/
 
-  typedef npy_int row;
-  #define ROW_TYPE NPY_INT
-  typedef npy_int col;
-  #define COL_TYPE NPY_INT
-  typedef npy_double cost;
-  #define COST_TYPE NPY_DOUBLE
+typedef long row;
+typedef long col;
+
+typedef long long cost;
+#define COST_TYPE tInt64
+#define COST_TYPE_NPY NPY_INT64
 
 /*************** FUNCTIONS  *******************/
 

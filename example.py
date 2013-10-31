@@ -23,5 +23,5 @@ a = numpy.array( [[inf,2,11,10,8,7,6,5],
                   [10,11,12,10,9,12,inf,3],
                   [10,10,10,10,6,3,1,inf]] )
 
-print  LAPJV.lap(a)[1]
+print LAPJV.lap(a)[0]
 

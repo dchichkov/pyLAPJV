@@ -3,6 +3,8 @@
   pyLAPJV.cpp 2004-08-20
 */
 
+#include "Python.h"
+#include "numpy/arrayobject.h"
 #include "lap.h"
 
 static PyObject *
@@ -12,15 +14,18 @@ LAPJV_lap(PyObject *self, PyObject *args)
   PyObject *ocosts;
   PyArrayObject *costs;
   int n;
-  col *rowsol;
-  row *colsol;
+  npy_intp n2;
+  long *rowsol;
+  long *colsol;
   cost lapcost,*buf,**ccosts,*u,*v;
   npy_intp *strides;
+  PyObject * rowo;
+  PyObject * colo;
 
   if (!PyArg_ParseTuple(args, "O", &ocosts))
     return NULL;
   costs = (PyArrayObject*)PyArray_FromAny(
-                                          ocosts,PyArray_DescrFromType(COST_TYPE),2,2,
+                                          ocosts,PyArray_DescrFromType(COST_TYPE_NPY),2,2,
                                           NPY_CONTIGUOUS|NPY_ALIGNED|NPY_FORCECAST,0
                                           );
   if (costs->nd!=2)
@@ -29,6 +34,7 @@ LAPJV_lap(PyObject *self, PyObject *args)
       goto error;
     }
   n = costs->dimensions[0];
+  n2 = costs->dimensions[0];
   if (costs->dimensions[1]!=n)
     {
       PyErr_SetString(PyExc_ValueError,"lap() requires a square matrix");
@@ -46,18 +52,22 @@ LAPJV_lap(PyObject *self, PyObject *args)
   if(!ccosts)
     {
       PyErr_NoMemory();
+      free(ccosts);
       goto error;
     }
   for(int i=0;i<n;i++)
     ccosts[i] = buf+i*(strides[0]/sizeof(cost));
 
-  rowsol = (col *)malloc(sizeof(col)*n);
-  colsol = (row *)malloc(sizeof(row)*n);
+  rowo = PyArray_SimpleNew(1, &n2, NPY_LONG);
+  colo = PyArray_SimpleNew(1, &n2, NPY_LONG);
+  rowsol = (long *) PyArray_DATA(rowo);
+  colsol = (long *) PyArray_DATA(colo);
   u = (cost *)malloc(sizeof(cost)*n);
   v = (cost *)malloc(sizeof(cost)*n);
   if(!(rowsol&&colsol&&u&&v))
     {
       PyErr_NoMemory();
+      free(ccosts);
       goto error;
     }
 
@@ -67,13 +77,10 @@ LAPJV_lap(PyObject *self, PyObject *args)
   //NA_InputArray() incremented costs, but now we're done with it, so let it get GC'ed:
   Py_XDECREF(costs);
 
-  return Py_BuildValue("(dOOOO)",lapcost,
-                       PyArray_SimpleNewFromData(1,(npy_intp*)&n,COL_TYPE,rowsol),
-                       PyArray_SimpleNewFromData(1,(npy_intp*)&n,ROW_TYPE,colsol),
-                       PyArray_SimpleNewFromData(1,(npy_intp*)&n,COST_TYPE,u),
-                       PyArray_SimpleNewFromData(1,(npy_intp*)&n,COST_TYPE,v)
+  free(ccosts);
+  return Py_BuildValue("(NN)",
+                       rowo, colo
                        );
-
  error:
   Py_XDECREF(costs);
   return NULL;
@@ -81,7 +88,7 @@ LAPJV_lap(PyObject *self, PyObject *args)
 
 static PyMethodDef LAPJVMethods[] = {
   {"lap",  LAPJV_lap, METH_VARARGS,
-   "Solves the linear assignment problem using the Jonker-Volgenant\nalgorithm.\n\nlap() takes a single argument - a square cost matrix - and returns a\n5-tuple of the form\n(min_cost,row_assigns,col_assigns,row_dual_vars,col_dual_vars).\n\nThe average user probably just wants the second or third of these\nelements, so a call like: \'assigns=lap(costs)[2]\' would be the\nmost common use."},
+   "Solves the linear assignment problem using the Jonker-Volgenant\nalgorithm.\n\nlap() takes a single argument - a square cost matrix - and returns a\ntuple of the form\n(row_assigns,col_assigns).\n\nThe average user probably just wants the second or third of these\nelements, so a call like: \'assigns=lap(costs)[1]' would be the\nmost common use."},
   {NULL, NULL, 0, NULL}        /* Sentinel (terminates structure) */
 };
 
